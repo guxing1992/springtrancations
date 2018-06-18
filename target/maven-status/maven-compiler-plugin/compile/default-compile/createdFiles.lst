@@ -1,0 +1,6 @@
+com\test\springtrancations\vo\UserVO.class
+com\test\springtrancations\db1\dao\UserDb1Mapper.class
+com\test\springtrancations\db2\dao\UserDb2Mapper.class
+com\test\springtrancations\service\UserServiceImpl.class
+com\test\springtrancations\service\UserService.class
+com\test\springtrancations\App.class

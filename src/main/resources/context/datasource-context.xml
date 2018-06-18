@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"  
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"  
+    xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:tx="http://www.springframework.org/schema/tx"  
+    xmlns:aop="http://www.springframework.org/schema/aop"  
+    xsi:schemaLocation="http://www.springframework.org/schema/mvc   
+    http://www.springframework.org/schema/mvc/spring-mvc-4.3.xsd  
+    http://www.springframework.org/schema/beans   
+    http://www.springframework.org/schema/beans/spring-beans-4.3.xsd  
+    http://www.springframework.org/schema/context   
+    http://www.springframework.org/schema/context/spring-context-4.3.xsd  
+    http://www.springframework.org/schema/tx   
+    http://www.springframework.org/schema/tx/spring-tx-4.3.xsd  
+    http://www.springframework.org/schema/aop   
+    http://www.springframework.org/schema/aop/spring-aop-4.3.xsd" default-lazy-init="true">
+   <!-- 自动扫描 -->
+<context:component-scan base-package="com.test.springtrancations" />
+ <context:property-placeholder location="classpath:context/database.properties"/>
+	 <!-- 引入属性配置文件
+	<bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">   
+	    <property name="location" value="classpath:context/database.properties" />          
+	</bean>  -->  
+	
+   <bean id="abstractXADataSource" class="com.atomikos.jdbc.AtomikosDataSourceBean" destroy-method="close" abstract="true">    
+       <property name="xaDataSourceClassName" value="com.mysql.jdbc.jdbc2.optional.MysqlXADataSource"/>  
+       <property name="poolSize" value="10" />    
+       <property name="minPoolSize" value="10"/>    
+       <property name="maxPoolSize" value="30"/>    
+       <property name="borrowConnectionTimeout" value="60"/>    
+       <property name="reapTimeout" value="20"/>    
+       <property name="maxIdleTime" value="60"/>    
+       <property name="maintenanceInterval" value="60"/>    
+       <property name="loginTimeout" value="60"/>    
+       <property name="testQuery">
+       		<value>select 1</value>
+       </property>    
+    </bean>  
+    <bean id="db1dataSource" class="com.atomikos.jdbc.AtomikosDataSourceBean"  
+	init-method="init" destroy-method="close">  
+		<property name="uniqueResourceName" value="ds1" />  
+		<property name="xaDataSourceClassName"  
+		value="com.mysql.jdbc.jdbc2.optional.MysqlXADataSource" />  
+		<property name="xaProperties">  
+		<props>  
+		<prop key="url">${jdbc.url.db1}</prop>  
+		<prop key="user">${jdbc.user.db1}</prop>  
+		<prop key="password">${jdbc.password.db1}</prop>  
+		</props>  
+		</property>  
+		<property name="minPoolSize" value="10" />  
+		<property name="maxPoolSize" value="100" />  
+		<property name="borrowConnectionTimeout" value="30" />  
+		<property name="testQuery" value="select 1" />  
+		<property name="maintenanceInterval" value="60" />  
+	</bean>  
+  
+  
+	<bean id="db2dataSource" class="com.atomikos.jdbc.AtomikosDataSourceBean"  
+	init-method="init" destroy-method="close">  
+	<property name="uniqueResourceName" value="ds2" />  
+	<property name="xaDataSourceClassName"  
+	value="com.mysql.jdbc.jdbc2.optional.MysqlXADataSource" />  
+	<property name="xaProperties">  
+	<props>  
+	<prop key="url">${jdbc.url.db2}</prop>  
+	<prop key="user">${jdbc.user.db2}</prop>  
+	<prop key="password">${jdbc.password.db2}</prop>  
+	</props>  
+	</property>  
+	<property name="minPoolSize" value="10" />  
+	<property name="maxPoolSize" value="100" />  
+	<property name="borrowConnectionTimeout" value="30" />  
+	<property name="testQuery" value="select 1" />  
+	<property name="maintenanceInterval" value="60" />  
+	</bean>  
+    
+    <bean id="sqlSessionFactoryForDb1" class="org.mybatis.spring.SqlSessionFactoryBean">  
+		<property name="dataSource" ref="db1dataSource" />  
+		<property name="mapperLocations" value="classpath*:com/test/springtrancations/xml/*.xml" />
+		<property name="typeAliasesPackage" value="com.test.springtrancations.vo"></property>  
+	</bean>  
+	<bean id="sqlSessionFactoryForDb2" class="org.mybatis.spring.SqlSessionFactoryBean">  
+		<property name="dataSource" ref="db2dataSource" />  
+		<property name="mapperLocations" value="classpath*:com/test/springtrancations/xml/*.xml" />
+		<property name="typeAliasesPackage" value="com.test.springtrancations.vo"></property>  
+	</bean>  
+	
+	<!-- atomikos事务管理器 -->  
+    <bean id="atomikosTransactionManager" class="com.atomikos.icatch.jta.UserTransactionManager" init-method="init" destroy-method="close">  
+        <property name="forceShutdown">  
+            <value>true</value>  
+        </property>  
+    </bean> 
+    <bean id="atomikosUserTransaction" class="com.atomikos.icatch.jta.UserTransactionImp">  
+        <property name="transactionTimeout" value="300" />  
+    </bean>
+    <!-- spring 事务管理器 -->    
+    <bean id="springTransactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">  
+        <property name="transactionManager" ref="atomikosTransactionManager" />  
+        <property name="userTransaction" ref="atomikosUserTransaction" />  
+        <!-- 必须设置，否则程序出现异常 JtaTransactionManager does not support custom isolation levels by default -->  
+        <property name="allowCustomIsolationLevels" value="true"/>   
+    </bean>   
+    
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+    	<property name="basePackage" value="com.test.springtrancations.db1.dao"></property>
+    	<property name="sqlSessionFactoryBeanName" value="sqlSessionFactoryForDb1"></property>
+    </bean>
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+    	<property name="basePackage" value="com.test.springtrancations.db2.dao"></property>
+    	<property name="sqlSessionFactoryBeanName" value="sqlSessionFactoryForDb2"></property>
+    </bean>
+</beans>
